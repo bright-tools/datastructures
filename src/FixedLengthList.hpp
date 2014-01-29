@@ -1,14 +1,14 @@
 /**
    @file
-   @brief Template class ( FixedLengthList ) to implement a list with 
+   @brief Template class ( FixedLengthList ) to implement a list with
           a limited number of elements.
 
-   @author John Bailey 
+   @author John Bailey
 
    @copyright Copyright 2013 John Bailey
 
    @section LICENSE
-   
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -104,13 +104,13 @@ template< class T, size_t queueMax > class FixedLengthListIter
    Template class to implement a list with a fixed maximum
    number of elements (i.e. the number of elements in the list
    is variable but cannot exceed a defined maximum).
-   
+
    While stl::list may be suitable for many
    occasions, it invariably makes use of dynamic memory
    allocation which can either be undesirable or overkill
    in some situations.  Of course, the down side of this
    class is that the memory required to store all items
-   in the list is allocated for the duration of the 
+   in the list is allocated for the duration of the
    instantiation.
 
    The implementation is based around a singly linked list
@@ -121,7 +121,7 @@ template< class T, size_t queueMax > class FixedLengthListIter
    are maintained.
 
    Note that the class currently is not thread safe.
-          
+
    Example:
    \code
           #define LIST_LEN (20U)
@@ -177,13 +177,20 @@ template < class T, size_t queueMax > class FixedLengthList
             0 and queueMax */
         size_t                  m_usedCount;
 
+        /** Remove the specified item from the list.
+
+            \p_item Item to be removed.  Note that item must exist in the list
+                    of used items
+        */
+        void remove_node( FixedLengthListItem<T>* p_item );
+
     public:
         /** Constructor for FixedLengthList */
         FixedLengthList( void );
 
         /** Initialising constructor for FixedLengthList.  Parameters will be
             used to initialise the list
- 
+
             \param p_items An array of items used to initialise the list.  They
                            will be added in the order in which they appear in
                            p_items
@@ -226,6 +233,8 @@ template < class T, size_t queueMax > class FixedLengthList
                     false in the case that an item was not returned (list empty)
         */
         bool dequeue( T* const p_item );
+
+        bool remove( const T p_item );
 
         /** Used to find out how many items are in the list
 
@@ -455,47 +464,106 @@ template < class T, size_t queueMax >
 bool FixedLengthList< T, queueMax >::dequeue( T* const p_item )
 {
     bool ret_val = false;
-    
+
     if( m_usedTail != NULL )
     {
         FixedLengthListItem<T>* old_item = m_usedTail;
 
         *p_item = old_item->m_item;
 
-        /* Item removed was only item in the list? */
-        if( m_usedHead == old_item )
-        {
-            m_usedHead = NULL;
-            m_usedTail = NULL;
-        } else {
-            FixedLengthListItem<T>* p = m_usedHead;
-
-            /* Need to update the forward pointer of the
-               item preceding the one which we've just removed.
-               That item also becomes the new tail
-               
-               Iterate the list and find it */
-            while( p != NULL )
-            {
-                if( p->m_forward == old_item )
-                {
-                    p->m_forward = NULL;
-                    m_usedTail = p;
-                    break;
-                } else {
-                    p = p->m_forward;
-                }
-            }
-        }
-
-        /* Move item to free list */
-        old_item->m_forward = m_freeHead;
-        m_freeHead = old_item;
-
-        m_usedCount--;
+        remove_node( old_item );
 
         /* Indicate success */
         ret_val = true;
+    }
+
+    return ret_val;
+}
+        
+
+template < class T, size_t queueMax >
+void FixedLengthList< T, queueMax >::remove_node( FixedLengthListItem<T>* p_item )
+{
+    /* Item removed was only item in the list? */
+    if( m_usedHead == p_item )
+    {
+        m_usedHead = NULL;
+        m_usedTail = NULL;
+    } else {
+        FixedLengthListItem<T>* p = m_usedHead;
+
+        /* Need to update the forward pointer of the
+           item preceding the one which we've just removed.
+           That item also becomes the new tail
+
+           Iterate the list and find it */
+        while( p != NULL )
+        {
+            if( p->m_forward == p_item )
+            {
+                p->m_forward = NULL;
+                m_usedTail = p;
+                break;
+            }
+            else
+            {
+                p = p->m_forward;
+            }
+        }
+    }
+
+    /* Move item to free list */
+    p_item->m_forward = m_freeHead;
+    m_freeHead = p_item;
+
+    m_usedCount--;
+}
+
+template < class T, size_t queueMax >
+bool FixedLengthList< T, queueMax >::remove( const T p_item )
+{
+    bool ret_val = false;
+    FixedLengthListItem<T>* last = NULL;
+    FixedLengthListItem<T>* p = m_usedHead;
+
+    /* Run through all the items in the used list */
+    while( p != NULL )
+    {
+        /* Does the item match the one we're looking for? */
+        if( p->m_item == p_item )
+        {
+            /* If there was no last item then this must be the head, so update
+               the head pointer, otherwise update the forward pointer on the
+               prevceding item in the list */
+            if( last == NULL )
+            {
+                m_usedHead = p->m_forward;
+            }
+            else
+            {
+                last->m_forward = p->m_forward;
+            }
+
+            /* Is this item the tail?  If so, update! */
+            if( m_usedTail == p )
+            {
+                m_usedTail = last;
+            }
+ 
+            /* Move item to free list */
+            p->m_forward = m_freeHead;
+            m_freeHead = p;
+
+            m_usedCount--;
+
+            ret_val = true;
+            break;
+        }
+        else
+        {
+            last = p;
+            p = p->m_forward;
+        }
     }
 
     return ret_val;

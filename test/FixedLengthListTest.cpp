@@ -4,7 +4,7 @@
 
    @author John Bailey 
 
-   @copyright Copyright 2013 John Bailey
+   @copyright Copyright 2014 John Bailey
 
    @section LICENSE
    
@@ -143,6 +143,12 @@ int main() {
     CHECK( list2.queue( 254 ) == false,   "queue() on a full list" );
     
     check_iterators();
+    
+    CHECK( list2.remove( 255 ) == false,  "remove() a non-existant item" );
+    CHECK( list2.available() == 0, "available() having tried to remove non-existent item from full list" ); 
+    CHECK( list2.remove( 243 ) == true,   "remove() a valid item" );
+    CHECK( list2.available() == 1, "available() having removed item from full list" ); 
+    CHECK( list2.inList( 243 ) == false,  "inList() for item which was just remove()d" ); 
 
     PRINTF("FixedLengthList test - Done\n");
 
